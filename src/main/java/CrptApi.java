@@ -30,7 +30,24 @@ public class CrptApi {
 
     public synchronized void uploadDoc(Doc doc, String description) {
         try {
-            RpsLimiter();
+            if (startingPoint == 0) {
+                startingPoint = System.currentTimeMillis();
+            }
+
+            long timeUnitToMills = timeUnit.toMillis(1);
+
+            if (threadCount.get() >= requestLimit) {
+                while (true) {
+                    if (System.currentTimeMillis() > startingPoint + timeUnitToMills) {
+                        startingPoint = System.currentTimeMillis();
+                        threadCount = new AtomicInteger(0);
+                        break;
+                    } else {
+                        Thread.sleep(timeUnitToMills / 100);    // Чтобы не итерироваться каждую милисекунду
+                    }
+                }
+            }
+            threadCount.incrementAndGet();
 
             /* Не понял, что подразумевалось под подписью в задании, если речь шла о подписи как о Signature,
             то я не знаю как это реализовать без сторонних библиотек */
@@ -45,29 +62,8 @@ public class CrptApi {
                     .build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (IOException | InterruptedException e) {
-            e.printStackTrace();
+            throw new RuntimeException(e);
         }
-    }
-
-    private void RpsLimiter() throws InterruptedException {
-        if (startingPoint == 0) {
-            startingPoint = System.currentTimeMillis();
-        }
-
-        long timeUnitToMills = timeUnit.toMillis(1);
-
-        if (threadCount.get() == requestLimit) {
-            while (true) {
-                if (System.currentTimeMillis() > startingPoint + timeUnitToMills) {
-                    startingPoint = System.currentTimeMillis();
-                    threadCount = new AtomicInteger(0);
-                    break;
-                } else {
-                    Thread.sleep(timeUnitToMills / 100);    // Чтобы не итерироваться каждую милисекунду
-                }
-            }
-        }
-        threadCount.incrementAndGet();
     }
 
     private static ObjectMapper getObjectMapper() {
