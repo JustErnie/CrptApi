@@ -14,11 +14,12 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class CrptApi {
     private final TimeUnit timeUnit;
     private final int requestLimit;
-    private volatile int threadCount = 0;
+    private volatile AtomicInteger threadCount = new AtomicInteger(0);
     private long startingPoint = 0;
     private static final ObjectMapper objectMapper = getObjectMapper();
 
@@ -55,18 +56,18 @@ public class CrptApi {
 
         long timeUnitToMills = timeUnit.toMillis(1);
 
-        if (threadCount >= requestLimit) {
+        if (threadCount.get() == requestLimit) {
             while (true) {
                 if (System.currentTimeMillis() > startingPoint + timeUnitToMills) {
                     startingPoint = System.currentTimeMillis();
-                    threadCount = 0;
+                    threadCount = new AtomicInteger(0);
                     break;
                 } else {
                     Thread.sleep(timeUnitToMills / 100);    // Чтобы не итерироваться каждую милисекунду
                 }
             }
         }
-        threadCount++;
+        threadCount.incrementAndGet();
     }
 
     private static ObjectMapper getObjectMapper() {
